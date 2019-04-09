@@ -3,7 +3,7 @@ Karel language interpreter in Rust. This version of Karel is slightly altered to
 
 ## Overview
 
-From [wikipedia]():
+From [wikipedia](https://en.wikipedia.org/wiki/Karel_(programming_language)):
 
 > A program in Karel is used to control a simple robot named Karel that lives in an environment consisting of a grid of streets (left-right) and avenues (up-down). Karel understands five basic instructions: move (Karel moves by one square in the direction he is facing), turnLeft (Karel turns 90 ° left), putBeeper (Karel puts a beeper on the square he is standing at), pickBeeper (Karel lifts a beeper off the square he is standing at), and turnoff (Karel switches himself off, the program ends). Karel can also perform boolean queries about his immediate environment, asking whether there is a beeper where he is standing, whether there are barriers next to him, and about the direction he is facing. A programmer can create additional instructions by defining them in terms of the five basic instructions, and by using conditional control flow statements if and while with environment queries, and by using the iterate construct. 
 
