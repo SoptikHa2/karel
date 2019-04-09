@@ -85,8 +85,4 @@ Following situations are considered to be errors and will terminate the robot:
 
 # Why????
 
-[Because](https://www.muppetlabs.com/%7Ebreadbox/bf/)
-
-[I](https://bigzaphod.github.io/Taxi/)
-
-[Can](https://esolangs.org/wiki/Chicken).
+That's not a very nice question.
