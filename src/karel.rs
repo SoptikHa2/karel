@@ -30,7 +30,7 @@ impl Config {
 
 pub struct Karel {
     gamefield: Vec<isize>,
-    karel_position: (usize, usize),
+    karel_coordinates: (usize, usize),
     karel_orientation: Direction,
     configuration: Config,
 }
@@ -42,7 +42,7 @@ impl Karel {
                 configuration.gamefield_width * configuration.gamefield_height,
             ),
             karel_orientation: Direction::North,
-            karel_position: (0, 0),
+            karel_coordinates: (0, 0),
             configuration,
         }
     }
@@ -84,7 +84,7 @@ impl Karel {
                     // There is an item here
                     return Err(ToggleWallError::ItemOnGround);
                 }
-                if self.karel_position == coords {
+                if self.karel_coordinates == coords {
                     // There is karel here
                     return Err(ToggleWallError::KarelIsHere);
                 }
@@ -105,23 +105,23 @@ impl Karel {
     pub fn query(&self, query: Query) -> Result<bool, QueryError> {
         match query {
             Query::Direction(direction) => Ok(enum_variant_eq(&direction, &self.karel_orientation)),
-            Query::ItemHere => match &self.get_gamefield(self.karel_position) {
+            Query::ItemHere => match &self.get_gamefield(self.karel_coordinates) {
                 Ok(num) => Ok(num > &0),
                 Err(err) => Err(QueryError::OutOfBounds),
             },
             Query::WallInFrontOfMe => {
                 let lookup_result = match &self.karel_orientation {
                     Direction::North => {
-                        self.get_gamefield((self.karel_position.0, self.karel_position.1 - 1))
+                        self.get_gamefield((self.karel_coordinates.0, self.karel_coordinates.1 - 1))
                     }
                     Direction::South => {
-                        self.get_gamefield((self.karel_position.0, self.karel_position.1 + 1))
+                        self.get_gamefield((self.karel_coordinates.0, self.karel_coordinates.1 + 1))
                     }
                     Direction::West => {
-                        self.get_gamefield((self.karel_position.0 + 1, self.karel_position.1))
+                        self.get_gamefield((self.karel_coordinates.0 + 1, self.karel_coordinates.1))
                     }
                     Direction::East => {
-                        self.get_gamefield((self.karel_position.0 - 1, self.karel_position.1))
+                        self.get_gamefield((self.karel_coordinates.0 - 1, self.karel_coordinates.1))
                     }
                 };
                 match lookup_result {
@@ -137,33 +137,33 @@ impl Karel {
             Move => match &self.query(Query::WallInFrontOfMe) {
                 Ok(true) => Err(ActionError::MoveWall),
                 Ok(false) => {
-                    self.karel_position = match &self.karel_orientation {
-                        Direction::North => (self.karel_position.0, self.karel_position.1 - 1),
-                        Direction::South => (self.karel_position.0, self.karel_position.1 + 1),
-                        Direction::West => (self.karel_position.0 + 1, self.karel_position.1),
-                        Direction::East => (self.karel_position.0 - 1, self.karel_position.1),
+                    self.karel_coordinates = match &self.karel_orientation {
+                        Direction::North => (self.karel_coordinates.0, self.karel_coordinates.1 - 1),
+                        Direction::South => (self.karel_coordinates.0, self.karel_coordinates.1 + 1),
+                        Direction::West => (self.karel_coordinates.0 + 1, self.karel_coordinates.1),
+                        Direction::East => (self.karel_coordinates.0 - 1, self.karel_coordinates.1),
                     };
                     Ok(())
                 }
                 Err(QueryError::OutOfBounds) => Err(ActionError::MoveOutOfBounds),
             },
-            PlaceItem => match &self.get_gamefield(self.karel_position) {
+            PlaceItem => match &self.get_gamefield(self.karel_coordinates) {
                 Ok(number) => {
                     if number >= &self.configuration.maximum_items_on_ground {
                         return Err(ActionError::ExceedItemLimit);
                     } else {
-                        &self.set_gamefield(self.karel_position, number + 1).unwrap();
+                        &self.set_gamefield(self.karel_coordinates, number + 1).unwrap();
                         return Ok(());
                     }
                 }
                 Err(_) => Err(ActionError::MoveOutOfBounds),
             },
-            RemoveItem => match &self.get_gamefield(self.karel_position) {
+            RemoveItem => match &self.get_gamefield(self.karel_coordinates) {
                 Ok(number) => {
                     if number == &0 {
                         return Err(ActionError::NoItemHere);
                     } else {
-                        &self.set_gamefield(self.karel_position, number - 1).unwrap();
+                        &self.set_gamefield(self.karel_coordinates, number - 1).unwrap();
                         return Ok(());
                     }
                 }
@@ -187,6 +187,26 @@ impl Karel {
                 Ok(())
             }
         }
+    }
+
+    /// Borrow a readonly gamemap. The gamemap is 1D array, which is accessed as if it was
+    /// 2D array. The index is computed this way:
+    /// ```rust
+    /// let index: usize = configuration.gamefield_height * coords.0 + coords.1;
+    /// ```
+    /// It contains numbers. Here is what they mean:
+    /// ```
+    /// -1 => Wall
+    /// X => (where X is >= 0) on this tile lies X items
+    /// ```
+    /// If you want to get karel's position and rotation, use `read_karel`.
+    pub fn read_gamemap(&self) -> &Vec<isize> {
+        &self.gamefield
+    }
+
+    /// Borrow information where karel stands (x, y) and which direction is he facing.
+    pub fn read_karel(&self) -> (&(usize, usize), &Direction) {
+        (&self.karel_coordinates, &self.karel_orientation)
     }
 }
 
