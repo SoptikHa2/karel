@@ -5,6 +5,14 @@ pub struct Config {
 }
 
 impl Config {
+    /// Create new config with parameters.
+    ///
+    /// ```rust
+    /// let config = crate::karel::Config::new(4, 8, 2);
+    /// assert_eq!(config.gamefield_width, 4);
+    /// assert_eq!(config.gamefield_height, 8);
+    /// assert_eq!(config.maximum_items_on_ground, 2);
+    /// ```
     pub fn new(
         gamefield_width: usize,
         gamefield_height: usize,
@@ -19,6 +27,13 @@ impl Config {
 
     /// By default, gamefield width and height are both 10,
     /// and maximum number of items on ground is limited to 8.
+    ///
+    /// ```rust
+    /// let config = crate::karel::Config::default();
+    /// assert_eq!(config.gamefield_width, 10);
+    /// assert_eq!(config.gamefield_height, 10);
+    /// assert_eq!(config.maximum_items_on_ground, 8);
+    /// ```
     pub fn default() -> Config {
         Config {
             gamefield_width: 10,
@@ -112,6 +127,9 @@ impl Karel {
             Query::WallInFrontOfMe => {
                 let lookup_result = match &self.karel_orientation {
                     Direction::North => {
+                        if self.karel_coordinates.1 == 0 {
+                            return Err(QueryError::OutOfBounds);
+                        }
                         self.get_gamefield((self.karel_coordinates.0, self.karel_coordinates.1 - 1))
                     }
                     Direction::South => {
@@ -121,6 +139,9 @@ impl Karel {
                         self.get_gamefield((self.karel_coordinates.0 + 1, self.karel_coordinates.1))
                     }
                     Direction::East => {
+                        if self.karel_coordinates.0 == 0 {
+                            return Err(QueryError::OutOfBounds);
+                        }
                         self.get_gamefield((self.karel_coordinates.0 - 1, self.karel_coordinates.1))
                     }
                 };
@@ -134,12 +155,16 @@ impl Karel {
 
     pub fn action(&mut self, action: Action) -> Result<(), ActionError> {
         match action {
-            Move => match &self.query(Query::WallInFrontOfMe) {
+            Action::Move => match &self.query(Query::WallInFrontOfMe) {
                 Ok(true) => Err(ActionError::MoveWall),
                 Ok(false) => {
                     self.karel_coordinates = match &self.karel_orientation {
-                        Direction::North => (self.karel_coordinates.0, self.karel_coordinates.1 - 1),
-                        Direction::South => (self.karel_coordinates.0, self.karel_coordinates.1 + 1),
+                        Direction::North => {
+                            (self.karel_coordinates.0, self.karel_coordinates.1 - 1)
+                        }
+                        Direction::South => {
+                            (self.karel_coordinates.0, self.karel_coordinates.1 + 1)
+                        }
                         Direction::West => (self.karel_coordinates.0 + 1, self.karel_coordinates.1),
                         Direction::East => (self.karel_coordinates.0 - 1, self.karel_coordinates.1),
                     };
@@ -147,29 +172,33 @@ impl Karel {
                 }
                 Err(QueryError::OutOfBounds) => Err(ActionError::MoveOutOfBounds),
             },
-            PlaceItem => match &self.get_gamefield(self.karel_coordinates) {
+            Action::PlaceItem => match &self.get_gamefield(self.karel_coordinates) {
                 Ok(number) => {
                     if number >= &self.configuration.maximum_items_on_ground {
                         return Err(ActionError::ExceedItemLimit);
                     } else {
-                        &self.set_gamefield(self.karel_coordinates, number + 1).unwrap();
+                        &self
+                            .set_gamefield(self.karel_coordinates, number + 1)
+                            .unwrap();
                         return Ok(());
                     }
                 }
                 Err(_) => Err(ActionError::MoveOutOfBounds),
             },
-            RemoveItem => match &self.get_gamefield(self.karel_coordinates) {
+            Action::RemoveItem => match &self.get_gamefield(self.karel_coordinates) {
                 Ok(number) => {
                     if number == &0 {
                         return Err(ActionError::NoItemHere);
                     } else {
-                        &self.set_gamefield(self.karel_coordinates, number - 1).unwrap();
+                        &self
+                            .set_gamefield(self.karel_coordinates, number - 1)
+                            .unwrap();
                         return Ok(());
                     }
                 }
                 Err(_) => Err(ActionError::MoveOutOfBounds),
             },
-            TurnLeft => {
+            Action::TurnLeft => {
                 match &self.karel_orientation {
                     Direction::North => {
                         self.karel_orientation = Direction::West;
@@ -277,4 +306,64 @@ pub enum ToggleWallError {
 /// https://stackoverflow.com/questions/32554285/compare-enums-only-by-variant-not-value
 fn enum_variant_eq<T>(a: &T, b: &T) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    /// If this test fails, we need to change documentation
+    fn config_default() {
+        let config = Config::default();
+        assert_eq!(config.gamefield_width, 10);
+        assert_eq!(config.gamefield_height, 10);
+        assert_eq!(config.maximum_items_on_ground, 8);
+    }
+
+    #[test]
+    fn config_new() {
+        let config = Config::new(12, 8, 4);
+        assert_eq!(config.gamefield_width, 12);
+        assert_eq!(config.gamefield_height, 8);
+        assert_eq!(config.maximum_items_on_ground, 4);
+    }
+
+    #[test]
+    fn karel_initialization() {
+        let config = Config::default();
+        let karel = Karel::new(config);
+        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::North));
+        assert_eq!(karel.karel_coordinates, (0, 0));
+    }
+
+    #[test]
+    fn karel_rotate() {
+        let mut karel = Karel::new(Config::default());
+        assert!(karel.action(Action::TurnLeft).is_ok());
+        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::West));
+        assert!(karel.action(Action::TurnLeft).is_ok());
+        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::South));
+        assert!(karel.action(Action::TurnLeft).is_ok());
+        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::East));
+        assert!(karel.action(Action::TurnLeft).is_ok());
+        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::North));
+        assert!(karel.action(Action::TurnLeft).is_ok());
+        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::West));
+    }
+
+    #[test]
+    fn outofbounds_fail() {
+        let mut karel = Karel::new(Config::default());
+        assert!(enum_variant_eq(&QueryError::OutOfBounds, &karel.query(Query::WallInFrontOfMe).unwrap_err()));
+        assert!(enum_variant_eq(&ActionError::MoveOutOfBounds, &karel.action(Action::Move).unwrap_err()));
+    }
+
+    #[test]
+    fn enum_variant_equals() {
+        assert!(enum_variant_eq(&Direction::South, &Direction::South));
+        assert_eq!(false, enum_variant_eq(&ActionError::ExceedItemLimit, &ActionError::MoveOutOfBounds));
+        assert!(enum_variant_eq(&Query::Direction(Direction::South), &Query::Direction(Direction::North)));
+        assert!(enum_variant_eq(&Query::Direction(Direction::West), &Query::Direction(Direction::West)));
+    }
 }
