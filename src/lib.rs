@@ -1,14 +1,34 @@
+use std::error::Error;
 use std::fs;
 use std::io::stdin;
 use std::io::Read;
-use std::error::Error;
 
-mod syntax;
 mod core;
+mod syntax;
 
 /// Run with selected parameters. Use stdin and stdout for communication.
-pub fn run(interactive: bool, source: Option<&str>, libraries: Option<Vec<&str>>, ignore_runtime_errors: bool) {
+pub fn run(
+    interactive: bool,
+    source: Option<&str>,
+    libraries: Option<Vec<&str>>,
+    ignore_runtime_errors: bool,
+) {
+    // Load libraries
+    let mut libs: Vec<String> = Vec::new();
+    if let Some(library_paths) = libraries {
+        let mut prepared_strings: Vec<String> = library_paths
+            .iter()
+            .map(|s| load_from_file_or_stdin(s).unwrap())
+            .collect();
+        libs.append(&mut prepared_strings);
+    }
 
+    if interactive {
+        run_interactive(libs, ignore_runtime_errors);
+    } else {
+        let source = load_from_file_or_stdin(source.unwrap()).unwrap();
+        run_from_source(source, libs, ignore_runtime_errors);
+    }
 }
 
 fn load_from_file_or_stdin(filename_or_slash: &str) -> Result<String, Box<dyn Error>> {
@@ -17,20 +37,14 @@ fn load_from_file_or_stdin(filename_or_slash: &str) -> Result<String, Box<dyn Er
         let mut buffer: Vec<u8> = Vec::new();
         stdin().read_to_end(&mut buffer)?;
         return Ok(String::from_utf8(buffer)?);
-    }else{
+    } else {
         // Load from file
         return Ok(fs::read_to_string(&filename_or_slash)?);
     }
 }
 
-fn run_interactive(libraries: Vec<&str>) {
+fn run_interactive(libraries: Vec<String>, ignore_runtime_errors: bool) {}
 
-}
+fn run_from_source(source: String, libraries: Vec<String>, ignore_runtime_errors: bool) {}
 
-fn run_from_source(source: &str, libraries: Vec<&str>) {
-
-}
-
-fn print_state(karel: &core::Karel){
-    
-}
+fn print_state(karel: &core::Karel) {}
