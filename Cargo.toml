@@ -5,3 +5,4 @@ authors = ["Petr Stastny <petr.stastny01@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+clap = "2.33.0"
