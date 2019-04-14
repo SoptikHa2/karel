@@ -6,13 +6,6 @@ pub struct Config {
 
 impl Config {
     /// Create new config with parameters.
-    ///
-    /// ```rust
-    /// let config = crate::karel::Config::new(4, 8, 2);
-    /// assert_eq!(config.gamefield_width, 4);
-    /// assert_eq!(config.gamefield_height, 8);
-    /// assert_eq!(config.maximum_items_on_ground, 2);
-    /// ```
     pub fn new(
         gamefield_width: usize,
         gamefield_height: usize,
@@ -27,13 +20,6 @@ impl Config {
 
     /// By default, gamefield width and height are both 10,
     /// and maximum number of items on ground is limited to 8.
-    ///
-    /// ```rust
-    /// let config = crate::karel::Config::default();
-    /// assert_eq!(config.gamefield_width, 10);
-    /// assert_eq!(config.gamefield_height, 10);
-    /// assert_eq!(config.maximum_items_on_ground, 8);
-    /// ```
     pub fn default() -> Config {
         Config {
             gamefield_width: 10,
@@ -220,20 +206,24 @@ impl Karel {
 
     /// Borrow a readonly gamemap. The gamemap is 1D array, which is accessed as if it was
     /// 2D array. The index is computed this way:
-    /// ```rust
-    /// let index: usize = configuration.gamefield_height * coords.0 + coords.1;
-    /// ```
+    /// 
+    /// `let index: usize = configuration.gamefield_height * coords.0 + coords.1;`
+    /// 
     /// It contains numbers. Here is what they mean:
-    /// ```
-    /// -1 => Wall
-    /// X => (where X is >= 0) on this tile lies X items
-    /// ```
+    /// 
+    /// `-1 => Wall`
+    /// 
+    /// `X => (where X is >= 0) on this tile lies X items`
+    /// 
     /// If you want to get karel's position and rotation, use `read_karel`.
     pub fn read_gamemap(&self) -> &Vec<isize> {
         &self.gamefield
     }
 
     /// Borrow information where karel stands (x, y) and which direction is he facing.
+    /// 
+    /// Returns a tuple. First item of tuple contains reference to pair of usize (in another tuple),
+    /// which represents current coordinates. Second item of tuple is reference to current Karel direction.
     pub fn read_karel(&self) -> (&(usize, usize), &Direction) {
         (&self.karel_coordinates, &self.karel_orientation)
     }
@@ -333,23 +323,23 @@ mod tests {
     fn karel_initialization() {
         let config = Config::default();
         let karel = Karel::new(config);
-        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::North));
-        assert_eq!(karel.karel_coordinates, (0, 0));
+        assert!(enum_variant_eq(karel.read_karel().1, &Direction::North));
+        assert_eq!(karel.read_karel().0, &(0, 0));
     }
 
     #[test]
     fn karel_rotate() {
         let mut karel = Karel::new(Config::default());
         assert!(karel.action(Action::TurnLeft).is_ok());
-        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::West));
+        assert!(enum_variant_eq(karel.read_karel().1, &Direction::West));
         assert!(karel.action(Action::TurnLeft).is_ok());
-        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::South));
+        assert!(enum_variant_eq(karel.read_karel().1, &Direction::South));
         assert!(karel.action(Action::TurnLeft).is_ok());
-        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::East));
+        assert!(enum_variant_eq(karel.read_karel().1, &Direction::East));
         assert!(karel.action(Action::TurnLeft).is_ok());
-        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::North));
+        assert!(enum_variant_eq(karel.read_karel().1, &Direction::North));
         assert!(karel.action(Action::TurnLeft).is_ok());
-        assert!(enum_variant_eq(&karel.karel_orientation, &Direction::West));
+        assert!(enum_variant_eq(karel.read_karel().1, &Direction::West));
     }
 
     #[test]

@@ -3,7 +3,8 @@ use std::io::stdin;
 use std::io::Read;
 use std::error::Error;
 
-use crate::core;
+mod syntax;
+mod core;
 
 /// Run with selected parameters. Use stdin and stdout for communication.
 pub fn run(interactive: bool, source: Option<&str>, libraries: Option<Vec<&str>>, ignore_runtime_errors: bool) {
@@ -30,5 +31,6 @@ fn run_from_source(source: &str, libraries: Vec<&str>) {
 
 }
 
-fn print_state(){
+fn print_state(karel: &core::Karel){
+    
 }

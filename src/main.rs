@@ -1,10 +1,6 @@
 extern crate clap;
 use clap::{App, Arg};
 
-mod lib;
-mod syntax;
-mod core;
-
 fn main() {
     let matches = App::new("Karel")
                     .version("0.1")
@@ -35,7 +31,7 @@ fn main() {
                         .takes_value(true));
     let matches = matches.get_matches();
 
-    lib::run(
+    karel::run(
         matches.is_present("interactive"),
         matches.value_of("file"),
         matches.values_of("lib").map(|v| v.collect()),
