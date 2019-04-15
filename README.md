@@ -23,7 +23,7 @@ def main # This is where program starts
       turn left
     endrepeat # We must end each block
   endif
-  die # Exit program
+  die # This acts as `return` in normal languages
 enddef
 ```
 
@@ -79,8 +79,6 @@ Following situations are considered to be errors and will terminate the robot:
 - Take is called when there is no beeper on current tile
 
 - Put is called when there are 8 beepers on current tile
-
-- Robot does not die when the program ends and has to be stopped by force. 
 
 
 # Why????
