@@ -31,14 +31,16 @@ impl<'a> SyntaxParser<'a> {
     pub fn run(&mut self) -> Result<(), RuntimeError> {
         match self.pointer {
             None => Err(RuntimeError::NoEntryPointDefined),
-            Some(_) => self.run_block(false),
+            Some(num) => self.run_block(false, num),
         }
     }
 
     /// Run underlying block of code. If the code block is to be skipped
     /// (for example because conditional was false), setting `skip_block` to `true`
     /// will make this code just advance the pointer to block end.
-    fn run_block(&mut self, skip_block: bool) -> Result<(), RuntimeError> {
+    fn run_block(&mut self, skip_block: bool, pointer: usize) -> Result<(), RuntimeError> {
+        let source = &self.source;
+        let mut pointer = pointer;
         match self.pointer {
             None => Err(RuntimeError::RuntimeSyntaxError(
                 SyntaxError::UnexpectedEndOfFile,
@@ -66,20 +68,20 @@ impl<'a> SyntaxParser<'a> {
                 };
 
                 loop {
-                    self.pointer = Some(self.pointer.unwrap() + 1);
-                    if self.source.len() >= self.pointer.unwrap() {
+                    pointer += 1;
+                    if source.len() >= pointer {
                         return Err(RuntimeError::RuntimeSyntaxError(
                             SyntaxError::UnexpectedEndOfFile,
                         ));
                     }
 
-                    let command: Vec<&str> = SyntaxParser::find_command(&self.source[self.pointer.unwrap()]);
+                    let command: Vec<&str> = SyntaxParser::find_command(&source[pointer]);
                     // Check if we didn't end the block
                     let syntax_block_end: &str = get_syntax_block_end(&current_syntax_block);
                     match command.get(0) {
                         Some(text) if text == &syntax_block_end => {
                             // We reached end of current block. Advance pointer and return.
-                            self.pointer = Some(self.pointer.unwrap() + 1);
+                            pointer += 1;
                             return Ok(());
                         }
                         // Match any other command
@@ -220,13 +222,13 @@ impl<'a> SyntaxParser<'a> {
                                                 _ => {
                                                     return Err(RuntimeError::RuntimeSyntaxError(
                                                         SyntaxError::NotDefined(
-                                                            &self.source[self.pointer.unwrap()],
+                                                            &self.source[pointer],
                                                         ),
                                                     ));
                                                 }
                                             };
 
-                                            let block_result = self.run_block(!success);
+                                            let block_result = self.run_block(!success, pointer);
 
                                             if let Err(block_error) = block_result {
                                                 return Err(block_error);
@@ -234,7 +236,7 @@ impl<'a> SyntaxParser<'a> {
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
-                                                SyntaxError::NotDefined(&self.source[self.pointer.unwrap()]),
+                                                SyntaxError::NotDefined(&source[pointer]),
                                             ));
                                         }
                                     }
@@ -246,22 +248,22 @@ impl<'a> SyntaxParser<'a> {
                                         Some(text) => {
                                             if self.methods.contains_key(*text) {
                                                 // Save the pointer location so we can return after the method finishes
-                                                let old_pointer: usize = self.pointer.unwrap();
+                                                let old_pointer: usize = pointer;
 
-                                                let block_result = self.run_block(true);
+                                                let block_result = self.run_block(true, pointer);
 
                                                 if let Err(block_error) = block_result {
                                                     return Err(block_error);
                                                 }
 
                                                 // And return back after calling the method
-                                                self.pointer = Some(old_pointer + 1);
+                                                pointer = old_pointer + 1;
                                             }
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
                                                 SyntaxError::NotEnoughArguments(
-                                                    &self.source[self.pointer.unwrap()],
+                                                    &source[pointer],
                                                 ),
                                             ));
                                         }
@@ -277,7 +279,7 @@ impl<'a> SyntaxParser<'a> {
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
                                                 SyntaxError::NotEnoughArguments(
-                                                    &self.source[self.pointer.unwrap()],
+                                                    &source[pointer],
                                                 ),
                                             ));
                                         }
@@ -285,7 +287,7 @@ impl<'a> SyntaxParser<'a> {
                                 }
                                 _ => {
                                     return Err(RuntimeError::RuntimeSyntaxError(
-                                        SyntaxError::NotDefined(&self.source[self.pointer.unwrap()]),
+                                        SyntaxError::NotDefined(&source[pointer]),
                                     ));
                                 }
                             };
