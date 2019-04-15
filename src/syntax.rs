@@ -8,7 +8,7 @@ pub struct SyntaxParser {
     methods: HashMap<String, usize>,
 }
 
-impl SyntaxParser {
+impl<'a> SyntaxParser {
     /// Create new syntax parser. It takes list of strings that represent
     /// program soRsult<SyntaxParser, Sult<SyntaxParserurce. They are read and methods are found and indexed.
     /// One can then run program with `run` or `step`.
@@ -26,7 +26,7 @@ impl SyntaxParser {
     }
 
     /// Run method until the program ends or a an error is encountered.
-    pub fn run(&mut self, environment: &mut Karel) -> Result<(), RuntimeError> {
+    pub fn run(&self, environment: &'a mut Karel) -> Result<(), RuntimeError> {
         match self.pointer {
             None => Err(RuntimeError::NoEntryPointDefined),
             Some(num) => self.run_block(false, num, environment),
@@ -36,7 +36,7 @@ impl SyntaxParser {
     /// Run underlying block of code. If the code block is to be skipped
     /// (for example because conditional was false), setting `skip_block` to `true`
     /// will make this code just advance the pointer to block end.
-    fn run_block(&mut self, skip_block: bool, pointer: usize, environment: &mut Karel) -> Result<(), RuntimeError> {
+    fn run_block(self, skip_block: bool, pointer: usize, environment: &'a mut Karel) -> Result<(), RuntimeError> {
         let source = &self.source;
         let methods = &self.methods;
         let mut pointer = pointer;
