@@ -2,23 +2,21 @@ use std::collections::HashMap;
 
 use crate::core::*;
 
-pub struct SyntaxParser<'a> {
+pub struct SyntaxParser {
     pointer: Option<usize>,
     source: Vec<String>,
     methods: HashMap<String, usize>,
-    environment: &'a mut Karel,
 }
 
-impl<'a> SyntaxParser<'a> {
+impl SyntaxParser {
     /// Create new syntax parser. It takes list of strings that represent
     /// program soRsult<SyntaxParser, Sult<SyntaxParserurce. They are read and methods are found and indexed.
     /// One can then run program with `run` or `step`.
-    pub fn new(sources: Vec<String>, environment: &'a mut Karel) -> SyntaxParser {
+    pub fn new(sources: Vec<String>) -> SyntaxParser {
         let mut sp = SyntaxParser {
             pointer: None,
             source: SyntaxParser::preprocess(sources),
             methods: HashMap::new(),
-            environment,
         };
         sp.index_methods();
         if sp.methods.contains_key("main") {
@@ -28,18 +26,19 @@ impl<'a> SyntaxParser<'a> {
     }
 
     /// Run method until the program ends or a an error is encountered.
-    pub fn run(&mut self) -> Result<(), RuntimeError> {
+    pub fn run(&mut self, environment: &mut Karel) -> Result<(), RuntimeError> {
         match self.pointer {
             None => Err(RuntimeError::NoEntryPointDefined),
-            Some(num) => self.run_block(false, num),
+            Some(num) => self.run_block(false, num, environment),
         }
     }
 
     /// Run underlying block of code. If the code block is to be skipped
     /// (for example because conditional was false), setting `skip_block` to `true`
     /// will make this code just advance the pointer to block end.
-    fn run_block(&mut self, skip_block: bool, pointer: usize) -> Result<(), RuntimeError> {
+    fn run_block(&mut self, skip_block: bool, pointer: usize, environment: &mut Karel) -> Result<(), RuntimeError> {
         let source = &self.source;
+        let methods = &self.methods;
         let mut pointer = pointer;
         match self.pointer {
             None => Err(RuntimeError::RuntimeSyntaxError(
@@ -94,28 +93,28 @@ impl<'a> SyntaxParser<'a> {
                                 /* ACTIONS */
                                 &"turn-left" => {
                                     // Move left
-                                    let result = self.environment.action(Action::TurnLeft);
+                                    let result = environment.action(Action::TurnLeft);
                                     if let Err(result_error) = result {
                                         return Err(RuntimeError::RuntimeActionError(result_error));
                                     }
                                 }
                                 &"move" => {
                                     // Move forward
-                                    let result = self.environment.action(Action::Move);
+                                    let result = environment.action(Action::Move);
                                     if let Err(result_error) = result {
                                         return Err(RuntimeError::RuntimeActionError(result_error));
                                     }
                                 }
                                 &"take" => {
                                     // Take item from current tile
-                                    let result = self.environment.action(Action::RemoveItem);
+                                    let result = environment.action(Action::RemoveItem);
                                     if let Err(result_error) = result {
                                         return Err(RuntimeError::RuntimeActionError(result_error));
                                     }
                                 }
                                 &"put" => {
                                     // Put an item on current tile
-                                    let result = self.environment.action(Action::PlaceItem);
+                                    let result = environment.action(Action::PlaceItem);
                                     if let Err(result_error) = result {
                                         return Err(RuntimeError::RuntimeActionError(result_error));
                                     }
@@ -131,8 +130,7 @@ impl<'a> SyntaxParser<'a> {
                                         Some(text) => {
                                             let success: bool = match text {
                                                 &"wall" => {
-                                                    let result = self
-                                                        .environment
+                                                    let result = environment
                                                         .query(Query::WallInFrontOfMe);
                                                     match result {
                                                         Err(result_error) => {
@@ -147,7 +145,7 @@ impl<'a> SyntaxParser<'a> {
                                                 }
                                                 &"beeper" => {
                                                     let result =
-                                                        self.environment.query(Query::ItemHere);
+                                                        environment.query(Query::ItemHere);
                                                     match result {
                                                         Err(result_error) => {
                                                             return Err(
@@ -160,8 +158,7 @@ impl<'a> SyntaxParser<'a> {
                                                     }
                                                 }
                                                 &"north" => {
-                                                    let result = self
-                                                        .environment
+                                                    let result = environment
                                                         .query(Query::Direction(Direction::North));
                                                     match result {
                                                         Err(result_error) => {
@@ -175,8 +172,7 @@ impl<'a> SyntaxParser<'a> {
                                                     }
                                                 }
                                                 &"south" => {
-                                                    let result = self
-                                                        .environment
+                                                    let result = environment
                                                         .query(Query::Direction(Direction::South));
                                                     match result {
                                                         Err(result_error) => {
@@ -190,8 +186,7 @@ impl<'a> SyntaxParser<'a> {
                                                     }
                                                 }
                                                 &"west" => {
-                                                    let result = self
-                                                        .environment
+                                                    let result = environment
                                                         .query(Query::Direction(Direction::West));
                                                     match result {
                                                         Err(result_error) => {
@@ -205,8 +200,7 @@ impl<'a> SyntaxParser<'a> {
                                                     }
                                                 }
                                                 &"east" => {
-                                                    let result = self
-                                                        .environment
+                                                    let result = environment
                                                         .query(Query::Direction(Direction::East));
                                                     match result {
                                                         Err(result_error) => {
@@ -222,17 +216,17 @@ impl<'a> SyntaxParser<'a> {
                                                 _ => {
                                                     return Err(RuntimeError::RuntimeSyntaxError(
                                                         SyntaxError::NotDefined(
-                                                            &self.source[pointer],
+                                                            &source[pointer],
                                                         ),
                                                     ));
                                                 }
                                             };
 
-                                            let block_result = self.run_block(!success, pointer);
+                                            let block_result = self.run_block(!success, pointer, environment);
 
-                                            if let Err(block_error) = block_result {
-                                                return Err(block_error);
-                                            }
+                                             if let Err(block_error) = block_result {
+                                                 return Err(block_error);
+                                             }
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
@@ -246,15 +240,15 @@ impl<'a> SyntaxParser<'a> {
                                     // Match second argument, and call the function as another block.
                                     match command.get(1) {
                                         Some(text) => {
-                                            if self.methods.contains_key(*text) {
+                                            if methods.contains_key(*text) {
                                                 // Save the pointer location so we can return after the method finishes
                                                 let old_pointer: usize = pointer;
 
-                                                let block_result = self.run_block(true, pointer);
+                                                let block_result = self.run_block(true, pointer, environment);
 
-                                                if let Err(block_error) = block_result {
-                                                    return Err(block_error);
-                                                }
+                                                 if let Err(block_error) = block_result {
+                                                     return Err(block_error);
+                                                 }
 
                                                 // And return back after calling the method
                                                 pointer = old_pointer + 1;
