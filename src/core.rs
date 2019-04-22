@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub struct Config {
     pub gamefield_width: usize,
     pub gamefield_height: usize,
@@ -206,26 +208,59 @@ impl Karel {
 
     /// Borrow a readonly gamemap. The gamemap is 1D array, which is accessed as if it was
     /// 2D array. The index is computed this way:
-    /// 
+    ///
     /// `let index: usize = configuration.gamefield_height * coords.0 + coords.1;`
-    /// 
+    ///
     /// It contains numbers. Here is what they mean:
-    /// 
+    ///
     /// `-1 => Wall`
-    /// 
+    ///
     /// `X => (where X is >= 0) on this tile lies X items`
-    /// 
+    ///
     /// If you want to get karel's position and rotation, use `read_karel`.
     pub fn read_gamemap(&self) -> &Vec<isize> {
         &self.gamefield
     }
 
     /// Borrow information where karel stands (x, y) and which direction is he facing.
-    /// 
+    ///
     /// Returns a tuple. First item of tuple contains reference to pair of usize (in another tuple),
     /// which represents current coordinates. Second item of tuple is reference to current Karel direction.
     pub fn read_karel(&self) -> (&(usize, usize), &Direction) {
         (&self.karel_coordinates, &self.karel_orientation)
+    }
+
+    /// Read karel gamefield and print into STDOUT.
+    /// This loops over all fields and prints them.
+    ///
+    /// `0 (empty) => .`
+    /// `1+ (number of items on ground) => 1+`
+    /// `-1 (wall) => #`
+    /// ` (karel) =>  ▼ OR ▲ OR ◀ OR ▶ (depends on orientation)`
+    pub fn print_karel(&self) {
+        for i in 0..self.configuration.gamefield_width {
+            for j in 0..self.configuration.gamefield_height {
+                if self.karel_coordinates.0 == i && self.karel_coordinates.1 == j {
+                    print!(
+                        "{}",
+                        match self.karel_orientation {
+                            Direction::West => "◀",
+                            Direction::North => "▲",
+                            Direction::South => "▼",
+                            Direction::East => "▶",
+                        }
+                    );
+                } else {
+                    match self.get_gamefield((i, j)).unwrap() {
+                        0 => print!("."),
+                        -1 => print!("#"),
+                        x if x > 0 => print!("{}", x),
+                        x => panic!("Unexpected field read while printing at ({}, {}) : {}", i, j, x),
+                    };
+                }
+            }
+            println!();
+        }
     }
 }
 
@@ -273,12 +308,31 @@ pub enum ActionError {
     NoItemHere,
 }
 
+impl<'a> fmt::Display for ActionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ActionError::MoveWall => write!(f, "Karel was ordered to run into a wall. Karel will terminate."),
+            ActionError::MoveOutOfBounds => write!(f, "Karel was ordered to run out of the map. Karel will terminate."),
+            ActionError::ExceedItemLimit => write!(f, "Karel exceeded item limit while placing an item. Karel will terminate."),
+            ActionError::NoItemHere => write!(f, "Karel tried to pick up item, but there was none there. Karel will terminate."),
+        }
+    }
+}
+
 /// Enum that describes various errors that can be caused by querying Karel.
 pub enum QueryError {
     /// This error means that Karel doesn't know how to answer a query, because he's
     /// asked about something that is not on the map. This is typically use as a response to invalid
     /// `WallInFrontOfMe` query.
     OutOfBounds,
+}
+
+impl<'a> fmt::Display for QueryError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            QueryError::OutOfBounds => write!(f, "Karel tried to look forward if there is a wall, but there was end of map. Karel will terminate."),
+        }
+    }
 }
 
 /// Enum that describes various errors that can be caused by
@@ -345,15 +399,30 @@ mod tests {
     #[test]
     fn outofbounds_fail() {
         let mut karel = Karel::new(Config::default());
-        assert!(enum_variant_eq(&QueryError::OutOfBounds, &karel.query(Query::WallInFrontOfMe).unwrap_err()));
-        assert!(enum_variant_eq(&ActionError::MoveOutOfBounds, &karel.action(Action::Move).unwrap_err()));
+        assert!(enum_variant_eq(
+            &QueryError::OutOfBounds,
+            &karel.query(Query::WallInFrontOfMe).unwrap_err()
+        ));
+        assert!(enum_variant_eq(
+            &ActionError::MoveOutOfBounds,
+            &karel.action(Action::Move).unwrap_err()
+        ));
     }
 
     #[test]
     fn enum_variant_equals() {
         assert!(enum_variant_eq(&Direction::South, &Direction::South));
-        assert_eq!(false, enum_variant_eq(&ActionError::ExceedItemLimit, &ActionError::MoveOutOfBounds));
-        assert!(enum_variant_eq(&Query::Direction(Direction::South), &Query::Direction(Direction::North)));
-        assert!(enum_variant_eq(&Query::Direction(Direction::West), &Query::Direction(Direction::West)));
+        assert_eq!(
+            false,
+            enum_variant_eq(&ActionError::ExceedItemLimit, &ActionError::MoveOutOfBounds)
+        );
+        assert!(enum_variant_eq(
+            &Query::Direction(Direction::South),
+            &Query::Direction(Direction::North)
+        ));
+        assert!(enum_variant_eq(
+            &Query::Direction(Direction::West),
+            &Query::Direction(Direction::West)
+        ));
     }
 }

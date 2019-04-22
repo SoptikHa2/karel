@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use crate::core::*;
 
@@ -26,12 +27,12 @@ impl<'a> SyntaxParser {
     }
 
     // /// Run method until the program ends or a an error is encountered.
-     pub fn run(&self, environment: &'a mut Karel) -> Result<(), RuntimeError> {
-         match self.pointer {
-             None => Err(RuntimeError::NoEntryPointDefined),
-             Some(num) => self.run_block(false, num, environment),
-         }
-     }
+    pub fn run(&self, environment: &'a mut Karel) -> Result<(), RuntimeError> {
+        match self.pointer {
+            None => Err(RuntimeError::NoEntryPointDefined),
+            Some(num) => self.run_block(false, num, environment),
+        }
+    }
 
     /// Run underlying block of code. If the code block is to be skipped
     /// (for example because conditional was false), setting `skip_block` to `true`
@@ -57,11 +58,13 @@ impl<'a> SyntaxParser {
                     Some(&"while") => SyntaxBlock::While,
                     None => {
                         return Err(RuntimeError::RuntimeSyntaxError(
-                            SyntaxError::ExpectedSomethingElse,
+                            SyntaxError::ExpectedSomethingElse(&self.source[pointer]),
                         ));
                     }
                     Some(_) => {
-                        return Err(RuntimeError::RuntimeSyntaxError(SyntaxError::NotDefined));
+                        return Err(RuntimeError::RuntimeSyntaxError(SyntaxError::NotDefined(
+                            &self.source[pointer],
+                        )));
                     }
                 };
 
@@ -94,28 +97,40 @@ impl<'a> SyntaxParser {
                                     // Move left
                                     let result = environment.action(Action::TurnLeft);
                                     if let Err(result_error) = result {
-                                        return Err(RuntimeError::RuntimeActionError(result_error));
+                                        return Err(RuntimeError::RuntimeActionError(
+                                            result_error,
+                                            &self.source[pointer],
+                                        ));
                                     }
                                 }
                                 &"move" => {
                                     // Move forward
                                     let result = environment.action(Action::Move);
                                     if let Err(result_error) = result {
-                                        return Err(RuntimeError::RuntimeActionError(result_error));
+                                        return Err(RuntimeError::RuntimeActionError(
+                                            result_error,
+                                            &self.source[pointer],
+                                        ));
                                     }
                                 }
                                 &"take" => {
                                     // Take item from current tile
                                     let result = environment.action(Action::RemoveItem);
                                     if let Err(result_error) = result {
-                                        return Err(RuntimeError::RuntimeActionError(result_error));
+                                        return Err(RuntimeError::RuntimeActionError(
+                                            result_error,
+                                            &self.source[pointer],
+                                        ));
                                     }
                                 }
                                 &"put" => {
                                     // Put an item on current tile
                                     let result = environment.action(Action::PlaceItem);
                                     if let Err(result_error) = result {
-                                        return Err(RuntimeError::RuntimeActionError(result_error));
+                                        return Err(RuntimeError::RuntimeActionError(
+                                            result_error,
+                                            &self.source[pointer],
+                                        ));
                                     }
                                 }
                                 &"die" => {
@@ -136,6 +151,7 @@ impl<'a> SyntaxParser {
                                                             return Err(
                                                                 RuntimeError::RuntimeQueryError(
                                                                     result_error,
+                                                                    &self.source[pointer],
                                                                 ),
                                                             );
                                                         }
@@ -149,6 +165,7 @@ impl<'a> SyntaxParser {
                                                             return Err(
                                                                 RuntimeError::RuntimeQueryError(
                                                                     result_error,
+                                                                    &self.source[pointer],
                                                                 ),
                                                             );
                                                         }
@@ -163,6 +180,7 @@ impl<'a> SyntaxParser {
                                                             return Err(
                                                                 RuntimeError::RuntimeQueryError(
                                                                     result_error,
+                                                                    &self.source[pointer],
                                                                 ),
                                                             );
                                                         }
@@ -177,6 +195,7 @@ impl<'a> SyntaxParser {
                                                             return Err(
                                                                 RuntimeError::RuntimeQueryError(
                                                                     result_error,
+                                                                    &self.source[pointer],
                                                                 ),
                                                             );
                                                         }
@@ -191,6 +210,7 @@ impl<'a> SyntaxParser {
                                                             return Err(
                                                                 RuntimeError::RuntimeQueryError(
                                                                     result_error,
+                                                                    &self.source[pointer],
                                                                 ),
                                                             );
                                                         }
@@ -205,6 +225,7 @@ impl<'a> SyntaxParser {
                                                             return Err(
                                                                 RuntimeError::RuntimeQueryError(
                                                                     result_error,
+                                                                    &self.source[pointer],
                                                                 ),
                                                             );
                                                         }
@@ -213,7 +234,9 @@ impl<'a> SyntaxParser {
                                                 }
                                                 _ => {
                                                     return Err(RuntimeError::RuntimeSyntaxError(
-                                                        SyntaxError::NotDefined,
+                                                        SyntaxError::NotDefined(
+                                                            &self.source[pointer],
+                                                        ),
                                                     ));
                                                 }
                                             };
@@ -227,7 +250,7 @@ impl<'a> SyntaxParser {
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
-                                                SyntaxError::NotDefined,
+                                                SyntaxError::NotDefined(&self.source[pointer]),
                                             ));
                                         }
                                     }
@@ -254,7 +277,9 @@ impl<'a> SyntaxParser {
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
-                                                SyntaxError::NotEnoughArguments,
+                                                SyntaxError::NotEnoughArguments(
+                                                    &self.source[pointer],
+                                                ),
                                             ));
                                         }
                                     }
@@ -268,14 +293,16 @@ impl<'a> SyntaxParser {
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
-                                                SyntaxError::NotEnoughArguments,
+                                                SyntaxError::NotEnoughArguments(
+                                                    &self.source[pointer],
+                                                ),
                                             ));
                                         }
                                     }
                                 }
                                 _ => {
                                     return Err(RuntimeError::RuntimeSyntaxError(
-                                        SyntaxError::NotDefined,
+                                        SyntaxError::NotDefined(&self.source[pointer]),
                                     ));
                                 }
                             };
@@ -341,35 +368,73 @@ impl<'a> SyntaxParser {
     }
 }
 
-pub enum RuntimeError {
+pub enum RuntimeError<'a> {
     /// Main was not found. Consider calling `interactive` instead
     NoEntryPointDefined,
-    RuntimeActionError(crate::core::ActionError),
-    RuntimeQueryError(crate::core::QueryError),
-    RuntimeSyntaxError(SyntaxError),
+    RuntimeActionError(crate::core::ActionError, &'a str),
+    RuntimeQueryError(crate::core::QueryError, &'a str),
+    RuntimeSyntaxError(SyntaxError<'a>),
 }
 
-pub enum SyntaxError {
+impl<'a> fmt::Display for RuntimeError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RuntimeError::NoEntryPointDefined => write!(
+                f,
+                "Entry point is not defined. Make sure you included def main."
+            ),
+            RuntimeError::RuntimeActionError(inner_error, source_line) => write!(
+                f,
+                "Runtime action error encountered: {}; on line: {}",
+                inner_error, source_line
+            ),
+            RuntimeError::RuntimeQueryError(inner_error, source_line) => write!(
+                f,
+                "Runtime query error encountered: {}; on line: {}",
+                inner_error, source_line
+            ),
+            RuntimeError::RuntimeSyntaxError(source_line) => {
+                write!(f, "Runtime syntax error encountered: {}", source_line)
+            }
+        }
+    }
+}
+
+pub enum SyntaxError<'a> {
     /// Method that was called is not defined
     /// (this method should be defined by user)
-    MethodNotDefined,
+    MethodNotDefined(&'a str),
     /// Non-user defined structure that was called is not defined
     /// (such as conditions, loops, and Karel commands)
-    NotDefined,
+    NotDefined(&'a str),
     /// Wrong block end encountered. Make sure you didn't mix up
     /// `endif`, `enddef`, `endrepeat`, `endwhile`
-    WrongBlockEnd,
+    WrongBlockEnd(&'a str),
     /// Unexpected end of file encountered. Make sure you included
     /// `endif`, `enddef`, `endrepeat`, or `endwhile`.
     UnexpectedEndOfFile,
     /// A number was wanted, but it cannot be converted from string.
     /// This is typically when user uses `repeat`.
-    NotANumber,
+    NotANumber(&'a str),
     /// Something else was expected. This is probably interpreter issue.
-    ExpectedSomethingElse,
+    ExpectedSomethingElse(&'a str),
     /// Not enough arguments to execute, or wrong arguments. For example
     /// condition statement without actual condition.
-    NotEnoughArguments,
+    NotEnoughArguments(&'a str),
+}
+
+impl<'a> fmt::Display for SyntaxError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SyntaxError::MethodNotDefined(x) => write!(f, "Method is not defined: {}", *x),
+            SyntaxError::ExpectedSomethingElse(x) => write!(f, "Expected something else: {}", *x),
+            SyntaxError::NotANumber(x) => write!(f, "Expected a number: {}", *x),
+            SyntaxError::NotDefined(x) => write!(f, "Token is not defined: {}", *x),
+            SyntaxError::NotEnoughArguments(x) => write!(f, "Not enough arguments: {}", *x),
+            SyntaxError::UnexpectedEndOfFile => write!(f, "Unexpected end of file. Make sure all the blocks (while, if, repeat, def, ...) are closed."),
+            SyntaxError::WrongBlockEnd(x) => write!(f, "Wrong block end (such as mismatched endif, endwhile): {}", *x),
+        }
+    }
 }
 
 enum SyntaxBlock {

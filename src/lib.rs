@@ -14,6 +14,7 @@ pub fn run(
     ignore_runtime_errors: bool,
 ) {
     // Load libraries
+    println!("{:?}", source);
     let mut libs: Vec<String> = Vec::new();
     if let Some(library_paths) = libraries {
         let mut prepared_strings: Vec<String> = library_paths
@@ -45,6 +46,21 @@ fn load_from_file_or_stdin(filename_or_slash: &str) -> Result<String, Box<dyn Er
 
 fn run_interactive(libraries: Vec<String>, ignore_runtime_errors: bool) {}
 
-fn run_from_source(source: String, libraries: Vec<String>, ignore_runtime_errors: bool) {}
+fn run_from_source(source: String, libraries: Vec<String>, ignore_runtime_errors: bool) {
+    let mut vec = libraries;
+    vec.push(source);
 
-fn print_state(karel: &core::Karel) {}
+    let mut karel = core::Karel::new(core::Config::default());
+    let syntax_parser = syntax::SyntaxParser::new(vec);
+
+    let result = syntax_parser.run(&mut karel);
+    match result {
+        Ok(_) => {
+            // Print result
+            karel.print_karel();
+        },
+        Err(x) => {
+            println!("An error occured: {}", x);
+        }
+    }
+}
