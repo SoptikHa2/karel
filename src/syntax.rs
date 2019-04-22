@@ -10,8 +10,8 @@ pub struct SyntaxParser {
 
 impl<'a> SyntaxParser {
     /// Create new syntax parser. It takes list of strings that represent
-    /// program soRsult<SyntaxParser, Sult<SyntaxParserurce. They are read and methods are found and indexed.
-    /// One can then run program with `run` or `step`.
+    /// program. The lines are read and methods are found and indexed.
+    /// One can then run program with `run`.
     pub fn new(sources: Vec<String>) -> SyntaxParser {
         let mut sp = SyntaxParser {
             pointer: None,
@@ -25,20 +25,23 @@ impl<'a> SyntaxParser {
         sp
     }
 
-    /// Run method until the program ends or a an error is encountered.
-    pub fn run(&self, environment: &'a mut Karel) -> Result<(), RuntimeError> {
-        match self.pointer {
-            None => Err(RuntimeError::NoEntryPointDefined),
-            Some(num) => self.run_block(false, num, environment),
-        }
-    }
+    // /// Run method until the program ends or a an error is encountered.
+     pub fn run(&self, environment: &'a mut Karel) -> Result<(), RuntimeError> {
+         match self.pointer {
+             None => Err(RuntimeError::NoEntryPointDefined),
+             Some(num) => self.run_block(false, num, environment),
+         }
+     }
 
     /// Run underlying block of code. If the code block is to be skipped
     /// (for example because conditional was false), setting `skip_block` to `true`
     /// will make this code just advance the pointer to block end.
-    fn run_block(self, skip_block: bool, pointer: usize, environment: &'a mut Karel) -> Result<(), RuntimeError> {
-        let source = &self.source;
-        let methods = &self.methods;
+    fn run_block(
+        &self,
+        skip_block: bool,
+        pointer: usize,
+        environment: &mut Karel,
+    ) -> Result<(), RuntimeError> {
         let mut pointer = pointer;
         match self.pointer {
             None => Err(RuntimeError::RuntimeSyntaxError(
@@ -54,27 +57,23 @@ impl<'a> SyntaxParser {
                     Some(&"while") => SyntaxBlock::While,
                     None => {
                         return Err(RuntimeError::RuntimeSyntaxError(
-                            SyntaxError::ExpectedSomethingElse(
-                                "Expected syntax block (if, def, repeat, while). Got: {}",
-                            ),
+                            SyntaxError::ExpectedSomethingElse,
                         ));
                     }
                     Some(_) => {
-                        return Err(RuntimeError::RuntimeSyntaxError(SyntaxError::NotDefined(
-                            &self.source[self.pointer.unwrap()],
-                        )));
+                        return Err(RuntimeError::RuntimeSyntaxError(SyntaxError::NotDefined));
                     }
                 };
 
                 loop {
                     pointer += 1;
-                    if source.len() >= pointer {
+                    if self.source.len() >= pointer {
                         return Err(RuntimeError::RuntimeSyntaxError(
                             SyntaxError::UnexpectedEndOfFile,
                         ));
                     }
 
-                    let command: Vec<&str> = SyntaxParser::find_command(&source[pointer]);
+                    let command: Vec<&str> = SyntaxParser::find_command(&self.source[pointer]);
                     // Check if we didn't end the block
                     let syntax_block_end: &str = get_syntax_block_end(&current_syntax_block);
                     match command.get(0) {
@@ -130,8 +129,8 @@ impl<'a> SyntaxParser {
                                         Some(text) => {
                                             let success: bool = match text {
                                                 &"wall" => {
-                                                    let result = environment
-                                                        .query(Query::WallInFrontOfMe);
+                                                    let result =
+                                                        environment.query(Query::WallInFrontOfMe);
                                                     match result {
                                                         Err(result_error) => {
                                                             return Err(
@@ -144,8 +143,7 @@ impl<'a> SyntaxParser {
                                                     }
                                                 }
                                                 &"beeper" => {
-                                                    let result =
-                                                        environment.query(Query::ItemHere);
+                                                    let result = environment.query(Query::ItemHere);
                                                     match result {
                                                         Err(result_error) => {
                                                             return Err(
@@ -215,22 +213,21 @@ impl<'a> SyntaxParser {
                                                 }
                                                 _ => {
                                                     return Err(RuntimeError::RuntimeSyntaxError(
-                                                        SyntaxError::NotDefined(
-                                                            &source[pointer],
-                                                        ),
+                                                        SyntaxError::NotDefined,
                                                     ));
                                                 }
                                             };
 
-                                            let block_result = self.run_block(!success, pointer, environment);
+                                            let block_result =
+                                                self.run_block(!success, pointer, environment);
 
-                                             if let Err(block_error) = block_result {
-                                                 return Err(block_error);
-                                             }
+                                            if let Err(block_error) = block_result {
+                                                return Err(block_error);
+                                            }
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
-                                                SyntaxError::NotDefined(&source[pointer]),
+                                                SyntaxError::NotDefined,
                                             ));
                                         }
                                     }
@@ -240,15 +237,16 @@ impl<'a> SyntaxParser {
                                     // Match second argument, and call the function as another block.
                                     match command.get(1) {
                                         Some(text) => {
-                                            if methods.contains_key(*text) {
+                                            if self.methods.contains_key(*text) {
                                                 // Save the pointer location so we can return after the method finishes
                                                 let old_pointer: usize = pointer;
 
-                                                let block_result = self.run_block(true, pointer, environment);
+                                                let block_result =
+                                                    self.run_block(true, pointer, environment);
 
-                                                 if let Err(block_error) = block_result {
-                                                     return Err(block_error);
-                                                 }
+                                                if let Err(block_error) = block_result {
+                                                    return Err(block_error);
+                                                }
 
                                                 // And return back after calling the method
                                                 pointer = old_pointer + 1;
@@ -256,9 +254,7 @@ impl<'a> SyntaxParser {
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
-                                                SyntaxError::NotEnoughArguments(
-                                                    &source[pointer],
-                                                ),
+                                                SyntaxError::NotEnoughArguments,
                                             ));
                                         }
                                     }
@@ -272,16 +268,14 @@ impl<'a> SyntaxParser {
                                         }
                                         None => {
                                             return Err(RuntimeError::RuntimeSyntaxError(
-                                                SyntaxError::NotEnoughArguments(
-                                                    &source[pointer],
-                                                ),
+                                                SyntaxError::NotEnoughArguments,
                                             ));
                                         }
                                     }
                                 }
                                 _ => {
                                     return Err(RuntimeError::RuntimeSyntaxError(
-                                        SyntaxError::NotDefined(&source[pointer]),
+                                        SyntaxError::NotDefined,
                                     ));
                                 }
                             };
@@ -304,7 +298,7 @@ impl<'a> SyntaxParser {
     /// whitespaces, removing comments and empty lines.
     ///
     /// Result si list of lines.
-    fn preprocess<'b>(source_files_content: Vec<String>) -> Vec<String> {
+    fn preprocess(source_files_content: Vec<String>) -> Vec<String> {
         // TODO: I copy *EVERY* line of source code. This will be VERRRYYY slow.
         let mut lines: Vec<String> = Vec::new();
         for source_file in source_files_content {
@@ -347,35 +341,35 @@ impl<'a> SyntaxParser {
     }
 }
 
-pub enum RuntimeError<'a> {
+pub enum RuntimeError {
     /// Main was not found. Consider calling `interactive` instead
     NoEntryPointDefined,
     RuntimeActionError(crate::core::ActionError),
     RuntimeQueryError(crate::core::QueryError),
-    RuntimeSyntaxError(SyntaxError<'a>),
+    RuntimeSyntaxError(SyntaxError),
 }
 
-pub enum SyntaxError<'a> {
+pub enum SyntaxError {
     /// Method that was called is not defined
     /// (this method should be defined by user)
-    MethodNotDefined(&'a str),
+    MethodNotDefined,
     /// Non-user defined structure that was called is not defined
     /// (such as conditions, loops, and Karel commands)
-    NotDefined(&'a str),
+    NotDefined,
     /// Wrong block end encountered. Make sure you didn't mix up
     /// `endif`, `enddef`, `endrepeat`, `endwhile`
-    WrongBlockEnd(&'a str),
+    WrongBlockEnd,
     /// Unexpected end of file encountered. Make sure you included
     /// `endif`, `enddef`, `endrepeat`, or `endwhile`.
     UnexpectedEndOfFile,
     /// A number was wanted, but it cannot be converted from string.
     /// This is typically when user uses `repeat`.
-    NotANumber(&'a str),
+    NotANumber,
     /// Something else was expected. This is probably interpreter issue.
-    ExpectedSomethingElse(&'a str),
+    ExpectedSomethingElse,
     /// Not enough arguments to execute, or wrong arguments. For example
     /// condition statement without actual condition.
-    NotEnoughArguments(&'a str),
+    NotEnoughArguments,
 }
 
 enum SyntaxBlock {
